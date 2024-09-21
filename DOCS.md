@@ -1,6 +1,5 @@
 # rofiapi
---
-    import "github.com/VannRR/rofi-api"
+#### `import "github.com/VannRR/rofi-api"`
 
 rofiapi, for use with https://github.com/davatorium/rofi, also see man rofi-script
 
