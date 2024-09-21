@@ -70,3 +70,6 @@ This shows three entries, initial run, counter and quit.
 - quit : when the quit entry is selected, rofi closes
 
 ***For more info check `DOCS.md`.***
+
+#### Notes
+I recommend compiling your rofi script/go binary with `go build -ldflags="-w -s"` for a smaller size.
