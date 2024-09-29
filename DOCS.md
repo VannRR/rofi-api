@@ -1,7 +1,9 @@
 # rofiapi
-#### `import "github.com/VannRR/rofi-api"`
+--
+    import "command-line-arguments"
 
-rofiapi, for use with https://github.com/davatorium/rofi, also see man rofi-script
+rofiapi, for use with https://github.com/davatorium/rofi, also see man
+### rofi-script
 
 ## Usage
 
@@ -107,24 +109,24 @@ Available options for Rofi configuration.
 #### type RofiApi
 
 ```go
-type RofiApi[T RofiData] struct {
+type RofiApi[T any] struct {
 	Options map[Option]string
 	Data    T
 	Entries []Entry
 }
 ```
 
-RofiApi represents the main structure for interacting with the Rofi API. The
-type parameter T must be a pointer to a type that implements the RofiData
-interface.
+RofiApi represents the main structure for interacting with the Rofi API.
 
 #### func  NewRofiApi
 
 ```go
-func NewRofiApi[T RofiData](data T) (*RofiApi[T], error)
+func NewRofiApi[T any](data T) (*RofiApi[T], error)
 ```
-NewRofiApi initializes a new RofiApi instance. The data parameter should be a
-pointer that implements the RofiData interface.
+NewRofiApi initializes a new RofiApi instance. The data argument is any value
+you want to persist when the rofi script runs (example: type struct myData). The
+T parameter needs to be compatible with the standard library's encoding/gob
+package.
 
 #### func (*RofiApi[T]) Draw
 
@@ -155,18 +157,6 @@ GetState returns Rofi's current state.
 func (r *RofiApi[T]) IsRanByRofi() bool
 ```
 IsRanByRofi returns if Rofi ran the script/go binary
-
-#### type RofiData
-
-```go
-type RofiData interface {
-	Bytes() []byte
-	ParseBytes([]byte) error
-}
-```
-
-RofiData is an interface that requires methods to convert to and from a byte
-slice.
 
 #### type SelectedEntry
 

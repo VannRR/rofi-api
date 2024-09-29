@@ -2,8 +2,11 @@
 package rofiapi
 
 import (
+	"bytes"
 	"encoding/ascii85"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -264,15 +267,8 @@ func (en Entry) hasAdditionalFields() bool {
 		en.Info != "" || en.NonSelectable || en.Urgent || en.Active
 }
 
-// RofiData is an interface that requires methods to convert to and from a byte slice.
-type RofiData interface {
-	Bytes() []byte
-	ParseBytes([]byte) error
-}
-
 // RofiApi represents the main structure for interacting with the Rofi API.
-// The type parameter T must be a pointer to a type that implements the RofiData interface.
-type RofiApi[T RofiData] struct {
+type RofiApi[T any] struct {
 	Options          map[Option]string
 	Data             T
 	Entries          []Entry
@@ -283,11 +279,12 @@ type RofiApi[T RofiData] struct {
 }
 
 // NewRofiApi initializes a new RofiApi instance.
-// The data parameter should be a pointer that implements the RofiData interface.
-func NewRofiApi[T RofiData](data T) (*RofiApi[T], error) {
+// The data argument is any value you want to persist when the rofi script runs
+// (example: type struct myData).
+// The T parameter needs to be compatible with the standard library's encoding/gob package.
+func NewRofiApi[T any](data T) (*RofiApi[T], error) {
 	stateStr, ranByRofi := os.LookupEnv(stateEnvVar)
 	state64, _ := strconv.ParseUint(stateStr, 10, 8)
-
 	var selectedEntry SelectedEntry
 	hasSelectedEntry := false
 	if len(os.Args) > 1 {
@@ -351,13 +348,16 @@ func (r *RofiApi[T]) getData() error {
 		return nil
 	}
 
-	bytes, err := decodeASCII85(encodedData)
+	b, err := decodeASCII85(encodedData)
 	if err != nil {
 		return fmt.Errorf("failed to decode ASCII85 string: %w", err)
 	}
-	if err := r.Data.ParseBytes(bytes); err != nil {
-		return fmt.Errorf("failed to convert bytes to value: %w", err)
+
+	d, err := decodeGob[T](b)
+	if err != nil {
+		return fmt.Errorf("failed to decode GOB bytes: %w", err)
 	}
+	r.Data = *d
 
 	return nil
 }
@@ -365,46 +365,55 @@ func (r *RofiApi[T]) getData() error {
 // setData encodes and sets data to be passed to Rofi.
 func (r *RofiApi[T]) setData() error {
 	const multiplier = 1.25
-	bytes := r.Data.Bytes()
 
-	if int(float64(len(bytes))*multiplier) > maxDataBytes {
-		return fmt.Errorf("data byte length %d * 1.25 exceeds max allowed %d",
-			len(bytes), maxDataBytes)
+	g, err := encodeGob(r.Data)
+	if err != nil {
+		return fmt.Errorf("failed to encode GOB bytes: %w", err)
 	}
 
-	encodedData := encodeASCII85(bytes)
+	if int(float64(len(g))*multiplier) > maxDataBytes {
+		return fmt.Errorf("data byte length %d * 1.25 exceeds max allowed %d",
+			len(g), maxDataBytes)
+	}
+
+	encodedData := encodeASCII85(g)
 
 	r.Options["data"] = string(encodedData)
 	return nil
 }
 
-// encodeASCII85 encodes a byte slice to ASCII85.
-func encodeASCII85(data []byte) string {
-	encoded := make([]byte, ascii85.MaxEncodedLen(len(data)))
-	ascii85.Encode(encoded, data)
+func encodeGob(data any) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	g := gob.NewEncoder(buf)
+	if err := g.Encode(data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decodeGob[T any](b []byte) (*T, error) {
+	data := new(T)
+	buf := bytes.NewBuffer(b)
+	g := gob.NewDecoder(buf)
+	if err := g.Decode(&data); err != nil && err != io.EOF {
+		return nil, err
+	}
+	return data, nil
+}
+
+func encodeASCII85(b []byte) string {
+	encoded := make([]byte, ascii85.MaxEncodedLen(len(b)))
+	ascii85.Encode(encoded, b)
 	return string(encoded)
 }
 
-// decodeASCII85 decodes an ASCII85 string to a byte slice.
-func decodeASCII85(data string) ([]byte, error) {
-	decoded := make([]byte, len(data))
-	ndst, _, err := ascii85.Decode(decoded, []byte(data), true)
+func decodeASCII85(s string) ([]byte, error) {
+	decoded := make([]byte, len(s))
+	_, _, err := ascii85.Decode(decoded, []byte(s), true)
 	if err != nil {
 		return nil, err
 	}
-
-	trim := ndst
-	for trim > ndst-4 {
-		if trim == 0 {
-			break
-		} else if decoded[trim-1] == 0 {
-			trim -= 1
-		} else {
-			break
-		}
-	}
-
-	return decoded[:trim], nil
+	return decoded, nil
 }
 
 // EscapePangoMarkup escapes any characters that have special meaning in pango markup.

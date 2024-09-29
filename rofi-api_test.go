@@ -2,45 +2,24 @@ package rofiapi
 
 import (
 	"bytes"
-	"encoding/ascii85"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
 )
 
 type MockData struct {
-	key   string
-	value string
-}
-
-func (d *MockData) Bytes() []byte {
-	return []byte(fmt.Sprintf("%s%s%s",
-		d.key,
-		"\u2028",
-		d.value,
-	))
-}
-
-func (d *MockData) ParseBytes(b []byte) error {
-	s := string(b)
-	vals := strings.Split(s, "\u2028")
-	d.key = vals[0]
-	d.value = vals[1]
-	return nil
+	Key   string
+	Value string
 }
 
 func Test_getData(t *testing.T) {
-	r, err := NewRofiApi[*MockData](&MockData{})
+	r, err := NewRofiApi[MockData](MockData{"1", "1"})
 	if err != nil {
 		t.Fatalf("expected no error from NewRofiApi(), got %v", err)
 	}
-	r.Data = &MockData{"1", "1"}
 
-	expected := &MockData{"foo", "bar"}
-	bytes := expected.Bytes()
-	encodedValue := make([]byte, ascii85.MaxEncodedLen(len(bytes)))
-	ascii85.Encode(encodedValue, bytes)
+	expected := MockData{"foo", "bar"}
+	bytes, _ := encodeGob(expected)
+	encodedValue := encodeASCII85(bytes)
 
 	os.Setenv(dataEnvVar, string(encodedValue))
 	err = r.getData()
@@ -48,29 +27,28 @@ func Test_getData(t *testing.T) {
 		t.Fatalf("expected no error from getData(), got %v", err)
 	}
 
-	if r.Data.key != "foo" {
-		t.Errorf("expected key 'foo', got '%v'", r.Data.key)
+	if r.Data.Key != "foo" {
+		t.Errorf("expected key 'foo', got '%v'", r.Data.Key)
 	}
-	if r.Data.value != "bar" {
-		t.Errorf("expected value 'bar', got '%v'", r.Data.value)
+	if r.Data.Value != "bar" {
+		t.Errorf("expected value 'bar', got '%v'", r.Data.Value)
 	}
 }
 
 func Test_setData(t *testing.T) {
 	os.Setenv(dataEnvVar, "")
-	r, err := NewRofiApi[*MockData](&MockData{})
+	r, err := NewRofiApi[MockData](MockData{"1", "1"})
 	if err != nil {
 		t.Fatalf("expected no error from NewRofiApi(), got %v", err)
 	}
-	r.Data = &MockData{"1", "1"}
+
 	err = r.setData()
 	if err != nil {
 		t.Fatalf("expected no error from setData(), got %v", err)
 	}
 
-	bytes := r.Data.Bytes()
-	expected := make([]byte, ascii85.MaxEncodedLen(len(bytes)))
-	ascii85.Encode(expected, bytes)
+	bytes, _ := encodeGob(r.Data)
+	expected := encodeASCII85(bytes)
 
 	actual := r.Options["data"]
 
@@ -118,7 +96,7 @@ func Test_EntryString(t *testing.T) {
 // Test_RofiApiDraw tests the Draw() method of the RofiApi struct.
 func Test_RofiApiDraw(t *testing.T) {
 	// Set up test data
-	data := &MockData{key: "foo", value: "bar"}
+	data := MockData{Key: "foo", Value: "bar"}
 	api, err := NewRofiApi(data)
 	if err != nil {
 		t.Fatalf("failed to create RofiApi: %v", err)
@@ -149,7 +127,7 @@ func Test_RofiApiDraw(t *testing.T) {
 		t.Fatalf("Draw() failed: %v", err)
 	}
 
-	expectedOutput := "\x00prompt\x1fTest Prompt\n\x00message\x1fTest Message\n\x00data\x1fAoDVIJ>cpcEW?(>\nEntry 1\nEntry 2\x00urgent\x1ftrue\n"
+	expectedOutput := "\x00prompt\x1fTest Prompt\n\x00message\x1fTest Message\n\x00data\x1f-[u4!!=2D<@r\"J@FC>4MJ,fTO!<Yu+Gl\\<R!<lM4Cis:i$ig8-%KCqZ\"(lIi!<Ze>EW?(>\nEntry 1\nEntry 2\x00urgent\x1ftrue\n"
 	if buf.String() != expectedOutput {
 		t.Errorf("Draw() output mismatch. Expected %q, got %q", expectedOutput, buf.String())
 	}

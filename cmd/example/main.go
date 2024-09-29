@@ -1,13 +1,3 @@
-# rofiapi
-
-#### `import github.com/VannRR/rofi-api`
-
-rofiapi, for use with https://github.com/davatorium/rofi also see man rofi-script
-
-## Usage
-
-A simple script would be:
-```go
 package main
 
 import (
@@ -53,13 +43,3 @@ func main() {
 		log.Fatalf("Error: %v\n", err)
 	}
 }
-```
-This shows three entries, initial run, counter and quit.
-- initial run: only displayed when there is no input/entry from rofi
-- counter: shows the value of data.number as it increments
-- quit : when the quit entry is selected, rofi closes
-
-***For more info check `DOCS.md`.***
-
-#### Notes
-I recommend compiling your rofi script/go binary with `go build -ldflags="-w -s"` for a smaller size.
