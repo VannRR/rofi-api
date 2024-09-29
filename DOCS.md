@@ -1,9 +1,6 @@
 # rofiapi
---
-    import "command-line-arguments"
 
-rofiapi, for use with https://github.com/davatorium/rofi, also see man
-### rofi-script
+rofiapi, for use with https://github.com/davatorium/rofi, also see man rofi-script
 
 ## Usage
 
