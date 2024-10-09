@@ -296,10 +296,10 @@ func NewRofiApi[T any](data T) (*RofiApi[T], error) {
 	}
 
 	r := &RofiApi[T]{
-		Options:          make(map[Option]string),
+		Options:          make(map[Option]string, optionCount),
 		Entries:          make([]Entry, 0),
-		selectedEntry:    selectedEntry,
 		Data:             data,
+		selectedEntry:    selectedEntry,
 		state:            State(state64),
 		ranByRofi:        ranByRofi,
 		hasSelectedEntry: hasSelectedEntry,
@@ -329,14 +329,22 @@ func (r *RofiApi[T]) IsRanByRofi() bool {
 
 // Draw updates Rofi with the current options and entries.
 func (r *RofiApi[T]) Draw() error {
+	delim := "\n"
+	if d, ok := r.Options[OptionDelim]; ok {
+		delim = d
+	}
+
 	if err := r.setData(); err != nil {
 		return err
 	}
 	for k, v := range r.Options {
+		if k != OptionDelim {
+			v = strings.ReplaceAll(v, delim, " ")
+		}
 		fmt.Printf("\x00%s\x1f%s\n", k, v)
 	}
 	for _, en := range r.Entries {
-		fmt.Println(en)
+		fmt.Println(strings.ReplaceAll(en.String(), delim, " "))
 	}
 	return nil
 }
