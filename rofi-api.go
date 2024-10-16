@@ -232,39 +232,39 @@ func (en Entry) String() string {
 	var sb strings.Builder
 	sb.WriteString(en.Text)
 
-	if en.hasAdditionalFields() {
-		sb.WriteString("\x00") // Rofi entry delimiter
+	first := true
+	writeOp := func(field string, value any) {
+		if first {
+			sb.WriteString(fmt.Sprintf("\x00%s\x1f%v", field, value))
+			first = false
+		} else {
+			sb.WriteString(fmt.Sprintf("\x1f%s\x1f%v", field, value))
+		}
 	}
 
 	if en.Icon != "" {
-		sb.WriteString(fmt.Sprintf("icon\x1f%s", en.Icon))
+		writeOp("icon", en.Icon)
 	}
 	if en.Display != "" {
-		sb.WriteString(fmt.Sprintf("display\x1f%s", en.Display))
+		writeOp("display", en.Display)
 	}
 	if en.Meta != "" {
-		sb.WriteString(fmt.Sprintf("meta\x1f%s", en.Meta))
+		writeOp("meta", en.Meta)
 	}
 	if en.Info != "" {
-		sb.WriteString(fmt.Sprintf("info\x1f%s", en.Info))
+		writeOp("info", en.Info)
 	}
 	if en.NonSelectable {
-		sb.WriteString(fmt.Sprintf("nonselectable\x1f%v", en.NonSelectable))
+		writeOp("nonselectable", en.NonSelectable)
 	}
 	if en.Urgent {
-		sb.WriteString(fmt.Sprintf("urgent\x1f%v", en.Urgent))
+		writeOp("urgent", en.Urgent)
 	}
 	if en.Active {
-		sb.WriteString(fmt.Sprintf("active\x1f%v", en.Active))
+		writeOp("active", en.Active)
 	}
 
 	return sb.String()
-}
-
-// hasAdditionalFields checks if the entry has fields beyond Text.
-func (en Entry) hasAdditionalFields() bool {
-	return en.Icon != "" || en.Display != "" || en.Meta != "" ||
-		en.Info != "" || en.NonSelectable || en.Urgent || en.Active
 }
 
 // RofiApi represents the main structure for interacting with the Rofi API.
